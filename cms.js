@@ -75,7 +75,7 @@ function addItem() {
           addDepartment();
           break;
         case "Add role":
-          addrole();
+          addRole();
           break;
         case "Add employee":
           addEmployee();
@@ -108,7 +108,60 @@ function viewDatabase() {
 }
 
 function updateEmployee() {
-  console.log("3");
+  inquirer.prompt([ 
+  {
+    name: "ID",
+    type: "input",
+    message: "What is the ID number of the employee you would like to update?"
+  },
+  {
+    name: "firstName",
+    type: "input",
+    message: "What is the updated first name of the employee?",
+    validate: function(value) {
+      if (value === "") {
+        return new Error("You must enter a valid name!");
+      } else {
+        return true;
+      }
+    }
+  },
+  {
+    name: "lastName", 
+    type: "input",
+    message: "What is the updated last name of the employee?",
+    validate: function(value) {
+      if (value === "") {
+        return new Error("You must enter a valid name!");
+      } else {
+        return true;
+      }
+    }
+  },
+  {
+    name: "salary",
+    type: "input",
+    message: "What is the updated salary?",
+    validate: function(value) {
+      if (isNaN(parseInt(value)) === true) {
+        return new Error(
+          "Please delete your entry and enter a valid salary(number)."
+        );
+      } else {
+        return true;
+      }
+    }
+  }]
+
+
+  
+  
+  
+  
+  ).then(function(answer) {
+    console.log("Sucessfully updated.")
+
+  });
 }
 
 function viewEmployees() {
@@ -172,70 +225,68 @@ function addDepartment() {
     });
 }
 //************FIX LATER */
-function addrole() {
-  
-  function getData() {
-    let query = "SELECT * FROM department";
-    connection.query(query, function(err, res) {
-      if (err) console.log(err);
-      return res;
-      
-    });
+function addRole() {
+  let depData = [];
+  connection.query("SELECT * FROM department", function(err, res) {
+    if (err) throw err;
+
+    depData = res;
+    askQuestions();
+  });
+
+  function askQuestions() {
+    inquirer
+      .prompt([
+        {
+          name: "name",
+          type: "input",
+          message: "What is the title of the new role?",
+          validate: function validateRole(name) {
+            if (name === "") {
+              console.log("You must enter a valid role title!");
+              return false;
+            } else {
+              return true;
+            }
+          }
+        },
+        {
+          name: "salary",
+          type: "input",
+          message: "Enter salary: ",
+          validate: function(value) {
+            if (isNaN(parseInt(value)) === true) {
+              return new Error(
+                "Please delete your entry and enter a valid salary(number)."
+              );
+            } else {
+              return true;
+            }
+          }
+        },
+        {
+          name: "department",
+          type: "rawlist",
+          message: "What department would you like to add this employee to?",
+          choices: depData
+        }
+      ])
+      .then(function (answer) {
+        console.log(answer)
+        let query = "INSERT INTO role SET ?";
+        connection.query(query,
+            {
+                name: answer.name,
+                salary: answer.salary,
+                department_id: answer.dept.id
+            },
+            function (err, res) {
+                if (err) console.log(err);
+                console.log("Role added successfully!")
+                runCMS();
+            })
+    })
   }
-  let depData = getData()
-  console.log(depData)
-
-
-  inquirer
-    .prompt([
-      {
-        name: "name",
-        type: "input",
-        message: "What is the title of the new role?",
-        validate: function validateRole(name) {
-          if (name === "") {
-            console.log("You must enter a valid role title!");
-            return false;
-          } else {
-            return true;
-          }
-        }
-      },
-      {
-        name: "salary",
-        type: "input",
-        message: "Enter salary: ",
-        validate: function(value) {
-          if (isNaN(parseInt(value)) === true) {
-            return new Error(
-              "Please delete your entry and enter a valid salary(number)."
-            );
-          } else {
-            return true;
-          }
-        }
-      }, {
-      name: "department",
-      type: "rawlist", 
-      message: "What department would you like to add this employee to?",
-      choices: [depData]
-      }
-    ])
-    .then(function(answer) {
-      console.table(answer);
-      console.log("Success");
-      // let query = "INSERT INTO role SET ?";
-      // connection.query(
-      //   query,
-      //   {
-      //     name: answer.action
-      //   },
-      //   function(err, res) {
-      //     if (err) console.log(err);
-      //     console.log("Department added successfully!");
-      //     runCMS();
-      // }
-    });
 }
 
 function addEmployee() {
@@ -279,9 +330,21 @@ function viewDepartment() {
   });
 }
 
-function viewRole() {}
+function viewRole() {
+  let query = "SELECT * FROM role";
+  connection.query(query, function(err, res) {
+    if (err) console.log(err);
+    console.table(res);
+  });
+}
 
-function viewEmployee() {}
+function viewEmployee() {
+  let query = "SELECT * FROM employee";
+  connection.query(query, function(err, res) {
+    if (err) console.log(err);
+    console.table(res);
+  });
+}
 
 function deleteDepartment() {
   inquirer
