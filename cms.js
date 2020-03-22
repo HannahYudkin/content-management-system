@@ -173,6 +173,19 @@ function addDepartment() {
 }
 //************FIX LATER */
 function addrole() {
+  
+  function getData() {
+    let query = "SELECT * FROM department";
+    connection.query(query, function(err, res) {
+      if (err) console.log(err);
+      return res;
+      
+    });
+  }
+  let depData = getData()
+  console.log(depData)
+
+
   inquirer
     .prompt([
       {
@@ -201,6 +214,11 @@ function addrole() {
             return true;
           }
         }
+      }, {
+      name: "department",
+      type: "rawlist", 
+      message: "What department would you like to add this employee to?",
+      choices: [depData]
       }
     ])
     .then(function(answer) {
