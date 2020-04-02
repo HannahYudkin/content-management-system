@@ -1,6 +1,5 @@
 const mysql = require("mysql");
 const inquirer = require("inquirer");
-const cTable = require("console.table");
 
 const connection = mysql.createConnection({
   host: "localhost",
@@ -32,9 +31,9 @@ function runCMS() {
         "Add department, roles, or employee.",
         "View department, roles, or emlployees.",
         "Update empolyee",
-        "View list of employees by manager.",
-        "Delete departments, roles, or employees.",
-        "View itemized budget of department."
+        //"View list of employees by manager.",
+        "Delete departments, roles, or employees."
+        //"View itemized budget of department."
       ]
     })
     .then(function(answer) {
@@ -48,15 +47,15 @@ function runCMS() {
         case "Update empolyee":
           updateEmployee();
           break;
-        case "View list of employees by manager.":
-          viewEmployees();
-          break;
+        // case "View list of employees by manager.":
+        //   viewEmployees();
+        //   break;
         case "Delete departments, roles, or employees.":
           deleteItem();
           break;
-        case "View itemized budget of department.":
-          viewItemization();
-          break;
+        // case "View itemized budget of department.":
+        //   viewItemization();
+        //   break;
       }
     });
 }
@@ -107,66 +106,71 @@ function viewDatabase() {
     });
 }
 
-function updateEmployee() {
-  inquirer.prompt([ 
-  {
-    name: "ID",
-    type: "input",
-    message: "What is the ID number of the employee you would like to update?"
-  },
-  {
-    name: "firstName",
-    type: "input",
-    message: "What is the updated first name of the employee?",
-    validate: function(value) {
-      if (value === "") {
-        return new Error("You must enter a valid name!");
-      } else {
-        return true;
-      }
-    }
-  },
-  {
-    name: "lastName", 
-    type: "input",
-    message: "What is the updated last name of the employee?",
-    validate: function(value) {
-      if (value === "") {
-        return new Error("You must enter a valid name!");
-      } else {
-        return true;
-      }
-    }
-  },
-  {
-    name: "salary",
-    type: "input",
-    message: "What is the updated salary?",
-    validate: function(value) {
-      if (isNaN(parseInt(value)) === true) {
-        return new Error(
-          "Please delete your entry and enter a valid salary(number)."
-        );
-      } else {
-        return true;
-      }
-    }
-  }]
+async function updateEmployee() {
+  let query = "SELECT role.id, role.title, role.department_id, employee.id, employee.first_name, employee.last_name, employee.role_id, employee.manager_id ";
+  query += "FROM employee INNER JOIN role ON (employee.role_id = role.id)";
 
+  const roles = await doQuery("SELECT * FROM role");
+  const employees = await doQuery(query);
 
-  
-  
-  
-  
-  ).then(function(answer) {
-    console.log("Sucessfully updated.")
+  const employeeChoices = [];
+  employees.forEach(elem => {
+    let currEmp = {
+      name: `${elem.first_name} ${elem.last_name}`,
+      value: elem.emp_id,
+      short: elem.first_name
+    };
 
+    employeeChoices.push(currEmp);
   });
+
+  const roleChoices = [];
+  roles.forEach(elem => {
+    let currRole = {
+      name: `${elem.title}`,
+      value: elem.id,
+      short: elem.title
+    };
+
+    roleChoices.push(currRole);
+  });
+
+  inquirer
+    .prompt([
+      {
+        name: "employee",
+        type: "list",
+        message: "Which employee you would like to update?",
+        choices: employeeChoices
+      },
+      {
+        name: "roleName",
+        type: "list",
+        message: "What is their new role?",
+        choices: roleChoices
+      }
+    ])
+    .then(function(answers) {
+      console.log(answers)
+      connection.query(
+        "UPDATE employee SET ? WHERE ?",
+        [
+          {
+            role_id: answers.roleName
+          },
+          {
+            id: answers.employee
+          }
+        ],
+        function(err) {
+          if (err) throw err;
+          console.log("\nEmployee role sucessfully updated!\n");
+          runCMS();
+        }
+      );
+    });
 }
 
-function viewEmployees() {
-  console.log("4");
-}
 
 function deleteItem() {
   inquirer
@@ -209,7 +213,6 @@ function addDepartment() {
       }
     })
     .then(function(answer) {
-      console.log(answer.action);
       let query = "INSERT INTO department SET ?";
       connection.query(
         query,
@@ -224,24 +227,16 @@ function addDepartment() {
       );
     });
 }
-//************FIX LATER */
 function addRole() {
-  let depData = [];
-  connection.query("SELECT * FROM department", function(err, res) {
+  connection.query("SELECT * FROM department", function(err, results) {
     if (err) throw err;
-
-    depData = res;
-    askQuestions();
-  });
-
-  function askQuestions() {
     inquirer
       .prompt([
         {
           name: "name",
           type: "input",
           message: "What is the title of the new role?",
-          validate: function validateRole(name) {
+          validate: function validateRoleName(name) {
             if (name === "") {
               console.log("You must enter a valid role title!");
               return false;
@@ -257,7 +252,7 @@ function addRole() {
           validate: function(value) {
             if (isNaN(parseInt(value)) === true) {
               return new Error(
-                "Please delete your entry and enter a valid salary(number)."
+                "Please delete your entry and enter a valid number!"
               );
             } else {
               return true;
@@ -265,31 +260,74 @@ function addRole() {
           }
         },
         {
-          name: "department",
+          name: "dept",
           type: "rawlist",
-          message: "What department would you like to add this employee to?",
-          choices: depData
+          message: "Which department does this role belong in?",
+          choices: function() {
+            let deptArray = [];
+            for (let i = 0; i < results.length; i++) {
+              deptArray.push(results[i].name);
+            }
+            return deptArray;
+          }
         }
       ])
-      .then(function (answer) {
-        console.log(answer)
-        let query = "INSERT INTO role SET ?";
-        connection.query(query,
-            {
-                name: answer.name,
-                salary: answer.salary,
-                department_id: answer.dept.id
-            },
-            function (err, res) {
-                if (err) console.log(err);
-                console.log("Role added successfully!")
-                runCMS();
-            })
-    })
-  }
+      .then(function(answer) {
+        let chosenDeptID;
+        for (let i = 0; i < results.length; i++) {
+          if (results[i].name === answer.dept) {
+            chosenDeptID = results[i].id;
+          }
+        }
+        connection.query(
+          "INSERT INTO role SET ?",
+          {
+            title: answer.name,
+            salary: answer.salary,
+            department_id: chosenDeptID
+          },
+          function(err, res) {
+            if (err) console.log(err);
+            console.log("Role added successfully!");
+            runCMS();
+          }
+        );
+      });
+  });
 }
 
-function addEmployee() {
+async function addEmployee() {
+  let query =
+    "SELECT employee.role_id, employee.first_name, employee.last_name, employee.role_id, employee.manager_id, role.id, role.title, role.salary, role.department_id, department.id, department.name ";
+  query += "FROM employee JOIN role ON (employee.role_id = role.id)";
+  query += "JOIN department ON (role.department_id = department.id)";
+
+  const aRole = await doQuery("SELECT * FROM role");
+
+  const aEmp = await doQuery(query);
+
+  const aEmpChoices = [];
+  aEmp.forEach(elem => {
+    let currEmp = {
+      name: `${elem.first_name} ${elem.last_name}`,
+      value: elem.emp_id,
+      short: elem.first_name
+    };
+
+    aEmpChoices.push(currEmp);
+  });
+
+  const aRoleChoices = [];
+  aRole.forEach(elem => {
+    let currRole = {
+      name: `${elem.title}`,
+      value: elem.id,
+      short: elem.title
+    };
+
+    aRoleChoices.push(currRole);
+  });
+
   inquirer
     .prompt([
       {
@@ -315,10 +353,37 @@ function addEmployee() {
             return true;
           }
         }
+      },
+      {
+        name: "titleID",
+        type: "list",
+        message: "What is their position?",
+        choices: aRoleChoices
+      },
+      {
+        name: "manager",
+        type: "list",
+        message: "Who is their manager?",
+        choices: aEmpChoices
       }
     ])
-    .then(function(answer) {
-      console.log("COOL.");
+    .then(function(answers) {
+      connection.query(
+        "INSERT INTO employee SET ? ",
+        [
+          {
+            first_name: answers.first,
+            last_name: answers.last,
+            role_id: answers.titleID,
+            manager_id: answers.manager
+          }
+        ],
+        function(err) {
+          if (err) throw err;
+          console.log("\nEmployee record sucessfully created!\n");
+          runCMS();
+        }
+      );
     });
 }
 
@@ -327,7 +392,9 @@ function viewDepartment() {
   connection.query(query, function(err, res) {
     if (err) console.log(err);
     console.table(res);
+    runCMS();
   });
+
 }
 
 function viewRole() {
@@ -335,7 +402,9 @@ function viewRole() {
   connection.query(query, function(err, res) {
     if (err) console.log(err);
     console.table(res);
+    runCMS();
   });
+
 }
 
 function viewEmployee() {
@@ -343,7 +412,9 @@ function viewEmployee() {
   connection.query(query, function(err, res) {
     if (err) console.log(err);
     console.table(res);
+    runCMS();
   });
+
 }
 
 function deleteDepartment() {
@@ -362,7 +433,17 @@ function deleteDepartment() {
         function(error, results, fields) {
           if (error) throw error;
           console.log("deleted " + results.affectedRows + " rows");
+          runCMS();
         }
       );
     });
+}
+
+function doQuery(query1) {
+  return new Promise(function(resolve, reject) {
+    connection.query(query1, function(err, results) {
+      if (err) reject(err);
+      resolve(results);
+    });
+  });
 }
