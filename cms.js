@@ -107,7 +107,8 @@ function viewDatabase() {
 }
 
 async function updateEmployee() {
-  let query = "SELECT role.id, role.title, role.department_id, employee.id, employee.first_name, employee.last_name, employee.role_id, employee.manager_id ";
+  let query =
+    "SELECT role.id, role.title, role.department_id, employee.id, employee.first_name, employee.last_name, employee.role_id, employee.manager_id ";
   query += "FROM employee INNER JOIN role ON (employee.role_id = role.id)";
 
   const roles = await doQuery("SELECT * FROM role");
@@ -151,7 +152,7 @@ async function updateEmployee() {
       }
     ])
     .then(function(answers) {
-      console.log(answers)
+      console.log(answers);
       connection.query(
         "UPDATE employee SET ? WHERE ?",
         [
@@ -171,30 +172,31 @@ async function updateEmployee() {
     });
 }
 
-
 function deleteItem() {
   inquirer
     .prompt({
       name: "action",
       type: "rawlist",
-      message: "Do you want to delete a department, a role, or an employee?",
-      choices: ["Department", "Role", "employee"]
+      message: 
+        "Do you want to delete a department, role, or employee?",
+      choices: ["Department", "Role", "Employee", "Return to main menu"]
     })
     .then(function(answer) {
-      if (answer.action === "Department") {
-        let query = "SELECT * FROM department";
-        //console.table();
-        connection.query(query, function(err, res) {
-          if (err) console.log(err);
-          console.table(res);
+      switch (answer.action) {
+        case "Department":
           deleteDepartment();
-        });
+          break;
+        case "Role":
+          deleteRole();
+          break;
+        case "Employee":
+          deleteEmployee();
+          break;
+        case "Return to main menu":
+          runCMS();
+          break;
       }
     });
-}
-
-function viewItemization() {
-  console.log("6");
 }
 
 function addDepartment() {
@@ -394,7 +396,6 @@ function viewDepartment() {
     console.table(res);
     runCMS();
   });
-
 }
 
 function viewRole() {
@@ -404,7 +405,6 @@ function viewRole() {
     console.table(res);
     runCMS();
   });
-
 }
 
 function viewEmployee() {
@@ -414,25 +414,112 @@ function viewEmployee() {
     console.table(res);
     runCMS();
   });
-
 }
 
-function deleteDepartment() {
+async function deleteDepartment() {
+  const dDept = await doQuery("SELECT * FROM department");
+
+  const dDeptChoices = [];
+  dDept.forEach(elem => {
+
+      let currDept = {
+          name: `${elem.name}`,
+          value: elem.id,
+          short: elem.name
+      }
+
+      dDeptChoices.push(currDept);
+  })
+
   inquirer
-    .prompt({
-      name: "id",
-      type: "input",
-      message: "What is the ID of the department you would like to delete?"
-    })
+      .prompt({
+          name: "deptName",
+          type: "list",
+          message: "Which department would you like to delete?",
+          choices: dDeptChoices
+      })
     .then(function(answer) {
       connection.query(
         "DELETE FROM department WHERE ?",
         {
-          id: answer.id
+          id: answer.deptName
         },
         function(error, results, fields) {
           if (error) throw error;
           console.log("deleted " + results.affectedRows + " rows");
+          runCMS();
+        }
+      );
+    });
+}
+
+async function deleteRole() {
+  const dRole = await doQuery("SELECT * FROM role");
+
+  const dRoleChoices = [];
+  dRole.forEach(elem => {
+    let currRole = {
+      name: `${elem.title}`,
+      value: elem.id,
+      short: elem.title
+    };
+
+    dRoleChoices.push(currRole);
+  });
+
+  inquirer
+    .prompt({
+      name: "roleList",
+      type: "list",
+      message: "Which role would you like to delete?",
+      choices: dRoleChoices
+    })
+    .then(function(answer) {
+      connection.query(
+        "DELETE FROM role WHERE ?",
+        {
+          id: answer.roleList
+        },
+        function(error, res) {
+          if (error) throw error;
+          console.log("\nRole deleted successfully!\n");
+          runCMS();
+        }
+      );
+    });
+}
+
+async function deleteEmployee() {
+  const dEmp = await doQuery("SELECT * FROM employee");
+
+  const dEmpChoices = [];
+  dEmp.forEach(elem => {
+    let currEmp = {
+      name: `${elem.first_name} ${elem.last_name}`,
+      value: elem.id,
+      short: elem.first_name
+    };
+
+    dEmpChoices.push(currEmp);
+  });
+
+  inquirer
+    .prompt({
+      name: "emp",
+      type: "list",
+      message: "Which employee would you like to delete?",
+      choices: dEmpChoices
+    })
+    .then(function(answer) {
+      connection.query(
+        "DELETE FROM employee WHERE ?",
+        {
+          id: answer.emp
+        },
+        function(error, res) {
+          if (error) throw error;
+          console.log(answer)
+          console.log("\nEmployee deleted successfully!\n");
           runCMS();
         }
       );
